@@ -1,0 +1,57 @@
+service: project_capstone
+
+plugins:
+  - serverless-webpack
+  - serverless-iam-roles-per-function
+  - serverless-plugin-tracing
+  - serverless-reqvalidator-plugin
+
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: '20201221'
+
+
+  stage: ${opt:stage, 'dev'}
+
+  region: ${opt:region, 'us-east-1'}
+
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  environment:
+    AUTHOR: 'Aldi Topalli'
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - xray:PutTelemetryRecords
+            - xray:PutTraceSegments
+          Resource: "*"
+
+custom:
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Serverless Todo API
+        description: Serverless application for TODOs
+    models:
+      - name: CreateTodoValidator
+        contentType: application/json
+        schema: ${file(models/create-todo-model.json)}
+      - name: UpdateTodoValidator
+        contentType: application/json
+        schema: ${file(models/update-todo-model.json)}
+
+functions:
+  Auth:
+    handler: src/lambda/auth/auth0Authorizer.handler
+  
+
+resources:
