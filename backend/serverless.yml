@@ -52,6 +52,34 @@ custom:
 functions:
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
+
+  GetVideos:
+    handler: src/lambda/http/getVideos.handler
+    events:
+      - http:
+          method: get
+          path: videos
+          cors: true
+          authorizer: Auth
+    iamRoleStatements:
+
+      
   
 
 resources:
+  Resources:
+    
+    VideosDynamoDb:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: videoId
+            AttributeType: S
+          - AttributeName: name
+            AttributeType: S
+        KeySchema:
+          - AttributeName: videoId
+            KeyType: HASH
+          - AttributeName: createdAt
+            KeyType: RANGE
+          
