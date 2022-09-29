@@ -1,4 +1,4 @@
-service: project_capstone
+service: ProjectCapstone
 
 plugins:
   - serverless-webpack
@@ -8,6 +8,7 @@ plugins:
 
 
 provider:
+  stackName: ProjectCapstone
   name: aws
   runtime: nodejs12.x
   lambdaHashingVersion: '20201221'
@@ -23,8 +24,8 @@ provider:
     apiGateway: true
 
   environment:
-    AUTHOR: 'Aldi Topalli'
     VIDEOS_TABLE: Videos-${self:provider.stage}
+    VIDEOS_CREATED_AT_INDEX: VideosCreatedAtIndex
 
   iam:
     role:
@@ -40,15 +41,8 @@ custom:
     api:
       info:
         version: v1.0.0
-        title: Serverless Todo API
-        description: Serverless application for TODOs
-    models:
-      - name: CreateTodoValidator
-        contentType: application/json
-        schema: ${file(models/create-todo-model.json)}
-      - name: UpdateTodoValidator
-        contentType: application/json
-        schema: ${file(models/update-todo-model.json)}
+        title: Serverless Videos API
+        description: Serverless application for Videos
 
 functions:
   Auth:
@@ -66,9 +60,57 @@ functions:
       - Effect: Allow
         Action:
           - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.VIDEOS_TABLE}/index/${self:provider.environment.VIDEOS_CREATED_AT_INDEX}
+  
+  CreateVideo:
+    handler: src/lambda/http/createVideo.handler
+    events:
+      - http:
+          method: post
+          path: videos
+          cors: true
+          authorizer: Auth
+          request:
+            schema:
+              application/json: ${file(models/create-video-request.json)}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.VIDEOS_TABLE}
 
-      
+  UpdateVideo:
+    handler: src/lambda/http/updateVideo.handler
+    events:
+      - http:
+          method: patch
+          path: videos/{videoId}
+          cors: true
+          authorizer: Auth
+          request:
+            schema:
+              application/json: ${file(models/update-video-request.json)}
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.VIDEOS_TABLE}
+
+  DeleteVideo:
+    handler: src/lambda/http/deleteVideo.handler
+    events:
+      - http:
+          method: delete
+          path: videos/{videoId}
+          cors: true
+          authorizer: Auth
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+          - dynamodb:DeleteItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.VIDEOS_TABLE}
   
 
 resources:
@@ -78,13 +120,39 @@ resources:
       Type: AWS::DynamoDB::Table
       Properties:
         AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
           - AttributeName: videoId
             AttributeType: S
-          - AttributeName: name
+          - AttributeName: createdAt
             AttributeType: S
         KeySchema:
-          - AttributeName: videoId
+          - AttributeName: userId
             KeyType: HASH
-          - AttributeName: createdAt
+          - AttributeName: videoId
             KeyType: RANGE
-          
+        LocalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.VIDEOS_CREATED_AT_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:provider.environment.VIDEOS_TABLE}
+
+      
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST'"
+        ResponseType: DEFAULT_4XX
+        RestApiId: 
+          Ref: ApiGatewayRestApi
+                
+    

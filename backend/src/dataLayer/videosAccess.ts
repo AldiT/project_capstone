@@ -1,10 +1,9 @@
 import * as AWS from 'aws-sdk';
-import * as XAWS from 'aws-xray-sdk';
 import {DocumentClient} from 'aws-sdk/clients/dynamodb';
 
 import { Video } from '../types/videoTypes';
 import {createLogger} from '../utils/logger';
-import { CreateVideoRequest } from '../types/requestsTypes';
+import { CreateVideoRequest, UpdateVideoRequest } from '../types/requestsTypes';
 
 const logger = createLogger("VideoAccess");
 
@@ -12,7 +11,8 @@ export class VideosAccess {
 
     constructor (
         private readonly videosTable: string = process.env.VIDEOS_TABLE,
-        private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient()
+        private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient(),
+        private readonly createdAtVideoIndex: string = process.env.VIDEOS_CREATED_AT_INDEX
     ){}
 
 
@@ -21,6 +21,7 @@ export class VideosAccess {
 
         const result = await this.docClient.query({
             TableName: this.videosTable,
+            IndexName: this.createdAtVideoIndex,
             KeyConditionExpression: "userId = :userId",
             ExpressionAttributeValues: {
                 ':userId': userId
@@ -39,15 +40,69 @@ export class VideosAccess {
             userId: userId,
             videoId: videoId,
             name: createVideoRequest.name,
-            createdAt: new Date().toISOString(),
-            public: false
+            publicVideo: createVideoRequest.publicVideo, 
+            createdAt: new Date().toISOString()
         }
         
-        const result = await this.docClient.put({
+        await this.docClient.put({
             TableName: this.videosTable,
             Item: newVideo
         }).promise();
 
         return newVideo;
+    }
+
+    async updateVideo(userId: string, videoId: string, updateVideoRequest: UpdateVideoRequest): Promise<Video> {
+        logger.info(`Updating video with id: ${videoId}`);
+
+        const result = await this.docClient.update({
+            TableName: this.videosTable,
+            Key: {
+                userId: userId,
+                videoId: videoId
+            },
+            UpdateExpression: 'set name = :name, publicVideo = :publicVideo',
+            ExpressionAttributeValues: {
+                ':name': updateVideoRequest.name,
+                ':publicVideo': updateVideoRequest.publicVideo
+            },
+            ReturnValues: 'ALL_NEW'
+        }).promise();
+
+        const updatedVideo: Video = result.Attributes as Video;
+
+        return updatedVideo;
+    }
+
+    async deleteVideo(userId: string, videoId: string): Promise<Video> {
+        logger.info(`Deleting video with id: ${videoId} for user: ${userId}`);
+
+        const result = await this.docClient.delete({
+            TableName: this.videosTable,
+            Key: {
+                userId: userId,
+                videoId: videoId
+            },
+            ReturnValues: 'ALL_OLD'
+        }).promise();
+
+        const deletedVideo: Video = result.Attributes as Video;
+        return deletedVideo;
+    }
+
+
+    async videoExists(userId: string, videoId: string): Promise<boolean> {
+        logger.info(`Checking if video with id: ${videoId} exists for user: ${userId}`);
+
+        const result = await this.docClient.query({
+            TableName: this.videosTable,
+            KeyConditionExpression: 'userId = :userId AND videoId = :videoId',
+            ExpressionAttributeValues: {
+                ':userId': userId,
+                ':videoId': videoId
+            }
+        }).promise();
+
+        return !!result.Count;
     }
 }

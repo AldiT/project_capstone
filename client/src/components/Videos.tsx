@@ -47,7 +47,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
   onVideoCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
     try {
       const newVideo = await createVideo(this.props.auth.getIdToken(), {
-        name: this.state.newVideoName
+          name: this.state.newVideoName,
+          publicVideo: false
       })
       this.setState({
         videos: [...this.state.videos, newVideo],
@@ -73,7 +74,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     try {
       const video = this.state.videos[pos]
       await patchVideo(this.props.auth.getIdToken(), video.videoId, {
-        name: video.name
+        name: video.name,
+        publicVideo: false
       })
     } catch {
       alert('Video deletion failed')

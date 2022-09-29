@@ -6,7 +6,7 @@ import {cors} from 'middy/middlewares';
 
 import { createLogger } from "../../utils/logger";
 import {createVideo} from '../../businessLogic/videos';
-import { getToken, parseUserId } from "../../utils/authUtils";
+import { getUserId } from "../../utils/authUtils";
 import { CreateVideoRequest } from "../../types/requestsTypes";
 
 
@@ -18,8 +18,7 @@ export const handler = middy(
         logger.info(`Processing create video request with event: \n${event}`);
 
         try{
-            const token = getToken(event);
-            const userId = parseUserId(token);
+            const userId = getUserId(event);
 
             const createVideoRequest: CreateVideoRequest = JSON.parse(event.body);
 
@@ -44,6 +43,8 @@ export const handler = middy(
     }
 )
 
-handler.use(cors({
-    credentials: true
-}))
+handler.use(
+    cors({
+      credentials: true
+    })
+  )
