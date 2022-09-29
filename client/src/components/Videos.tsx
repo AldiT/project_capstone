@@ -4,14 +4,14 @@ import { History } from 'history'
 import * as React from 'react'
 import {
   Button,
-  //Checkbox,
   Divider,
   Grid,
   Header,
   Icon,
   Input,
   Image,
-  Loader
+  Loader,
+  Checkbox
 } from 'semantic-ui-react'
 
 import { createVideo, deleteVideo, getVideos, patchVideo } from '../api/videos-api'
@@ -27,13 +27,15 @@ interface VideosState {
   videos: Video[]
   newVideoName: string
   loadingVideos: boolean
+  newVideoPublic: boolean
 }
 
 export class Videos extends React.PureComponent<VideosProps, VideosState> {
   state: VideosState = {
     videos: [],
     newVideoName: '',
-    loadingVideos: true
+    loadingVideos: true,
+    newVideoPublic: false
   }
 
   handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,7 +50,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     try {
       const newVideo = await createVideo(this.props.auth.getIdToken(), {
           name: this.state.newVideoName,
-          publicVideo: false
+          publicVideo: this.state.newVideoPublic
       })
       this.setState({
         videos: [...this.state.videos, newVideo],
@@ -94,6 +96,28 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     }
   }
 
+  onCheckboxChange(event: React.FormEvent<HTMLInputElement>){
+    console.log("Changing")
+  }
+
+  renderPublicVideoCheckbox(){
+    return (
+      <Grid.Column width={2}>
+        <Checkbox 
+          name = "newVideoPublic"
+          ref = "newVideoPublic"
+          toggle
+          label="Public"
+          onClick={(event: React.FormEvent<HTMLInputElement>) => {
+            this.setState({
+              newVideoPublic: !this.state.newVideoPublic
+            })
+          }}
+        />
+      </Grid.Column>
+    );
+  }
+
   render() {
     return (
       <div>
@@ -108,26 +132,31 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
 
   renderCreateVideoInput() {
     return (
-      <Grid.Row>
-        <Grid.Column width={16}>
-          <Input
-            action={{
-              color: 'teal',
-              labelPosition: 'left',
-              icon: 'add',
-              content: 'New post',
-              onClick: this.onVideoCreate
-            }}
-            fluid
-            actionPosition="left"
-            placeholder="Whats on your mind..."
-            onChange={this.handleNameChange}
-          />
-        </Grid.Column>
-        <Grid.Column width={16}>
-          <Divider />
-        </Grid.Column>
-      </Grid.Row>
+      <Grid columns={2}>
+        <Grid.Row>
+          <Grid.Column width={14}>
+            <Input
+              action={{
+                color: 'teal',
+                labelPosition: 'left',
+                icon: 'add',
+                content: 'New post',
+                onClick: this.onVideoCreate
+              }}
+              fluid
+              actionPosition="left"
+              placeholder="Whats on your mind..."
+              onChange={this.handleNameChange}
+            />
+          </Grid.Column>
+          <Grid.Column width={2}>
+              {this.renderPublicVideoCheckbox()}
+          </Grid.Column>
+          <Grid.Column width={16}>
+            <Divider />
+          </Grid.Column>
+        </Grid.Row>
+      </Grid>
     )
   }
 
