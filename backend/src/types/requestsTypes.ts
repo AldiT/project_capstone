@@ -2,9 +2,9 @@
 
 export interface CreateVideoRequest {
     name: string 
-    publicVideo: boolean
+    publicVideo: string
 }
 export interface UpdateVideoRequest {
     name: string
-    publicVideo: boolean
+    publicVideo: string
 }

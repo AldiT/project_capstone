@@ -13,6 +13,7 @@ import {
   Loader,
   Checkbox
 } from 'semantic-ui-react'
+import { VideoPlayer } from './VideoPlayer'
 
 import { createVideo, deleteVideo, getVideos, patchVideo } from '../api/videos-api'
 import Auth from '../auth/Auth'
@@ -27,7 +28,7 @@ interface VideosState {
   videos: Video[]
   newVideoName: string
   loadingVideos: boolean
-  newVideoPublic: boolean
+  newVideoPublic: string
 }
 
 export class Videos extends React.PureComponent<VideosProps, VideosState> {
@@ -35,7 +36,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     videos: [],
     newVideoName: '',
     loadingVideos: true,
-    newVideoPublic: false
+    newVideoPublic: 'n'
   }
 
   handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,7 +57,8 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
         videos: [...this.state.videos, newVideo],
         newVideoName: ''
       })
-    } catch {
+    } catch (e){
+      console.log(e)
       alert('Video creation failed')
     }
   }
@@ -77,7 +79,7 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
       const video = this.state.videos[pos]
       await patchVideo(this.props.auth.getIdToken(), video.videoId, {
         name: video.name,
-        publicVideo: false
+        publicVideo: 'n'
       })
     } catch {
       alert('Video deletion failed')
@@ -96,10 +98,6 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     }
   }
 
-  onCheckboxChange(event: React.FormEvent<HTMLInputElement>){
-    console.log("Changing")
-  }
-
   renderPublicVideoCheckbox(){
     return (
       <Grid.Column width={2}>
@@ -109,9 +107,14 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
           toggle
           label="Public"
           onClick={(event: React.FormEvent<HTMLInputElement>) => {
-            this.setState({
-              newVideoPublic: !this.state.newVideoPublic
-            })
+            if (this.state.newVideoPublic === 'y')
+              this.setState({
+                newVideoPublic: 'n'
+              })
+            else
+              this.setState({
+                newVideoPublic: 'y'
+              })
           }}
         />
       </Grid.Column>
@@ -178,12 +181,23 @@ export class Videos extends React.PureComponent<VideosProps, VideosState> {
     )
   }
 
+  renderVideoPlayer(video: Video){
+    console.log(video)
+    if (video.videoUrl)
+      return (
+        <Grid.Row centered>    
+          <VideoPlayer videoUrl={video.videoUrl}/>
+        </Grid.Row>
+      );
+  }
+
   renderVideosList() {
     return (
-      <Grid padded>
+      <Grid centered>
         {this.state.videos.map((video, pos) => {
           return (
             <Grid.Row key={video.videoId}>
+              {this.renderVideoPlayer(video)}
               <Grid.Column width={1} verticalAlign="middle">
               </Grid.Column>
               <Grid.Column width={10} verticalAlign="middle">

@@ -59,7 +59,7 @@ export async function getUploadUrl(
   idToken: string,
   videoId: string
 ): Promise<string> {
-  const response = await Axios.post(`${apiEndpoint}/videos/${videoId}/attachment`, '', {
+  const response = await Axios.post(`${apiEndpoint}/videos/${videoId}/upload`, '', {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${idToken}`

@@ -1,4 +1,5 @@
 import * as AWS from 'aws-sdk';
+import * as AWSXRay from 'aws-xray-sdk';
 import {DocumentClient} from 'aws-sdk/clients/dynamodb';
 
 import { Video } from '../types/videoTypes';
@@ -7,19 +8,24 @@ import { CreateVideoRequest, UpdateVideoRequest } from '../types/requestsTypes';
 
 const logger = createLogger("VideoAccess");
 
+
+const XAWS = AWSXRay.captureAWS(AWS)
+
 export class VideosAccess {
 
     constructor (
         private readonly videosTable: string = process.env.VIDEOS_TABLE,
-        private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient(),
-        private readonly createdAtVideoIndex: string = process.env.VIDEOS_CREATED_AT_INDEX
+        private readonly docClient: DocumentClient = new XAWS.DynamoDB.DocumentClient(),
+        private readonly createdAtVideoIndex: string = process.env.VIDEOS_CREATED_AT_INDEX,
+        private readonly publicGSIIndex: string = process.env.PUBLIC_INDEX,
+        private readonly videosBucket: string = process.env.VIDEOS_S3_BUCKET
     ){}
 
 
     async getVideos(userId: string): Promise<Array<Video>> {
         logger.info(`Getting all the videos for user: ${userId}`);
 
-        const result = await this.docClient.query({
+        const resultUser = await this.docClient.query({
             TableName: this.videosTable,
             IndexName: this.createdAtVideoIndex,
             KeyConditionExpression: "userId = :userId",
@@ -28,9 +34,23 @@ export class VideosAccess {
             }
         }).promise();
 
-        const videos: Array<Video> = result.Items as Array<Video>;
+        const resultPublic = await this.docClient.query({
+            TableName: this.videosTable,
+            IndexName: this.publicGSIIndex,
+            FilterExpression: 'userId <> :userId',
+            KeyConditionExpression: "publicVideo = :t",
+            ExpressionAttributeValues: {
+                ':t': 'y',
+                ':userId': userId
+            }
+        }).promise();
 
-        return videos
+        const videosUser: Array<Video> = resultUser.Items as Array<Video>;
+        const videosPublic: Array<Video> = resultPublic.Items as Array<Video>
+
+        const videos: Array<Video> = videosUser.concat(videosPublic);
+
+        return videos;
     }
 
     async createVideo(userId: string, videoId: string, createVideoRequest: CreateVideoRequest): Promise<Video> {
@@ -88,6 +108,27 @@ export class VideosAccess {
 
         const deletedVideo: Video = result.Attributes as Video;
         return deletedVideo;
+    }
+
+    async attachFileToVideo(userId: string, videoId: string): Promise<Video> {
+        logger.info(`Attaching file to video: ${videoId} for ${userId}`);
+
+        const result = await this.docClient.update({
+            TableName: this.videosTable,
+            Key: {
+                userId: userId,
+                videoId: videoId
+            },
+            UpdateExpression: 'set videoUrl = :videoUrl',
+            ExpressionAttributeValues: {
+                ':videoUrl': `https://${this.videosBucket}.s3.amazonaws.com/${videoId}`
+            },
+            ReturnValues: 'ALL_NEW'
+        }).promise();
+
+        const newVideo: Video = result.Attributes as Video;
+
+        return newVideo;
     }
 
 

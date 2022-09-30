@@ -5,6 +5,6 @@ export interface Video {
     videoId: string
     name: string
     createdAt: string
-    publicVideo: boolean
+    publicVideo: string
     videoUrl?: string
 }
